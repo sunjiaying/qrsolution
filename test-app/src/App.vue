@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <div id="refreshbtn" v-show="show" @click="getCode">刷新验证二维码</div>
+    <div id="refreshbtn" ref="btnrefresh" v-show="show" @click="getCode">刷新验证二维码</div>
     <div id="refreshtime" v-show="!show">刷新时间: {{count}} 秒</div>
     <vue-qr :gifBgSrc="require('./assets/comeon2.gif')" :size="300" :dotScale="0.4" :text="qr" qid="testid"></vue-qr>  
     <div id='qr'>{{qr}}</div>
@@ -12,13 +12,13 @@
         <li>扫描设备: {{checkresult.scanid}}</li>
         <li>验证时间: {{checkresult.checktime}}</li>
       </ul>
-      <input type="button" @click="reset()" value="刷新验证二维码" />
+      <input type="button" ref="btnreset" @click="reset()" value="刷新验证二维码" />
+      <div>还剩 {{delayResultCount}} 秒 自动关闭</div>
     </div>
   </div>
 </template>
 
 <script>
-// import HelloWorld from './components/HelloWorld.vue'
 import vueQr from 'vue-qr'
 import moment from 'moment'
 import Stopwatch from 'timer-stopwatch'
@@ -32,10 +32,6 @@ export default {
   },
   data() {
     return {
-      src: require("./assets/bg1.png"),
-      src2: require("./assets/avatar.png"),
-      src3: require("./assets/bg2.jpg"),
-      src4: require("./assets/bg3.jpg"),
       id: '',
       show: true,
       count: '',
@@ -45,7 +41,10 @@ export default {
         state: false,
         checktime: null,
         scanid: ''
-      }
+      },
+      delay: null,
+      delayResult: null,
+      delayResultCount: ''
     }
   },
   mounted() {
@@ -54,12 +53,27 @@ export default {
   sockets: {
     connect() {
       this.id = this.$socket.id;
-      // this.reset();
+      this.delay = new Stopwatch(1000);
+      var _this = this;
+      this.delay.onDone(function() {
+        _this.$refs.btnrefresh.click();
+      });
+      this.delay.start();
     },
     ok(data) {
       this.checkresult.checktime = moment().format('YYYY-MM-DD HH:mm:ss');
       this.checkresult.scanid = data;
       this.checkresult.state = true;
+
+      this.delayResult = new Stopwatch(3000);
+      var _this = this;
+      this.delayResult.onTime(function(time) {
+        _this.delayResultCount = Math.round(time.ms / 1000).toString();
+      });
+      this.delayResult.onDone(function() {
+        _this.$refs.btnreset.click();
+      });
+      this.delayResult.start();
     },
     code(data) {
       this.qr = JSON.stringify(data);
@@ -81,18 +95,13 @@ export default {
       this.code();
 
       this.timer = new Stopwatch(TIMER);
-
       this.timer.onTime(function(time) {
-        // eslint-disable-next-line no-console
-        // console.log(Math.round(time.ms / 1000).toString());
         _this.count = Math.round(time.ms / 1000).toString();
       });
-
       this.timer.onDone(function() {
         _this.show = true;
         _this.getCode();
       });
-
       this.timer.start();
       this.show = false;
     },
@@ -141,6 +150,7 @@ export default {
   margin: 0 auto;
   word-break: break-all;
   width: 300px;
+  padding-bottom: 10px;
 }
 #scan_result ul li {
   text-align: left;
