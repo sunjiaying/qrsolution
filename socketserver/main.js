@@ -2,7 +2,7 @@ require("amd-loader");
 
 const server = require('http').createServer();
 const io = require('socket.io')(server);
-const crypto = require('crypto');
+const encrypt = require('./utils/encrypt');
 const moment = require('moment');
 const checkin = require('./actions/checkin');
 const salarylogin = require('./actions/salarylogin');
@@ -10,24 +10,6 @@ const salarylogin = require('./actions/salarylogin');
 // io.engine.generateId = function (req) {
 //   return 1
 // }
-
-// 加密
-function genSign(src, key, iv) {
-  let sign = '';
-  const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
-  sign += cipher.update(src, 'utf8', 'hex');
-  sign += cipher.final('hex');
-  return sign;
-}
-
-// 解密
-function deSign(sign, key, iv) {
-  let src = '';
-  const cipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
-  src += cipher.update(sign, 'hex', 'utf8');
-  src += cipher.final('utf8');
-  return src;
-}
 
 var map = {};
 const key = Buffer.from('9vApxLk5G3PAsJrM', 'utf8');
@@ -45,7 +27,7 @@ io.on('connection', client => {
   client.on('event', data => {
     if (data.command === 'code') {
       var val = data.id + '|' + moment().format('YYYY-MM-DD HH:mm:ss') + '|' + data.action;
-      var code = genSign(val, key, iv);
+      var code = encrypt.genSign(val, key, iv);
       console.log(val);
       console.log(code);
 
@@ -59,7 +41,7 @@ io.on('connection', client => {
     if (data.command === 'checkcode') {      
       var qr = data.qr;
       console.log('qr.code:', qr.code);
-      var str = deSign(qr.code,  key, iv);
+      var str = encrypt.deSign(qr.code,  key, iv);
       var strs = str.split('|');
       console.log('qrid', strs[0]);
       console.log('scanid:', data.id);
